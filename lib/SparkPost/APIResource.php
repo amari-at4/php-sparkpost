@@ -32,11 +32,53 @@ class APIResource {
   protected $sparkpost;
 
   /**
+   * Debug mode
+   */
+  protected $debug_mode = false;
+
+  /**
+   * Stores last message information in debug mode
+   */
+  protected $last_message = [];
+
+  /**
    * Initializes config and httpAdapter for use later.
    * @param $sparkpost \SparkPost\SparkPost provides api configuration information
    */
   public function __construct(SparkPost $sparkpost) {
     $this->sparkpost = $sparkpost;
+  }
+
+  /**
+   * Put debug mode On and stores headers and body
+   */
+  public function setDebugModeOn() {
+    $this->debug_mode = true;
+  }
+
+  /**
+   * Put debug mode Off
+   */
+  public function setDebugModeOff() {
+    $this->debug_mode = false;
+  }
+
+  /**
+   * Indicates if debug mode is on
+   * 
+   * @return boolean
+   */
+  public function isDebugMode() {
+    return $this->debug_mode;
+  }
+
+  /**
+   * Retrieve Last message information (Request / Response) if debug mode is on
+   * 
+   * @return array
+   */
+  public function getLastMessage() {
+    return $this->last_message;
   }
 
   /**
@@ -158,7 +200,11 @@ class APIResource {
     if( !empty($options['body']) ) {
       $model = static::$structure;
       $requestModel = $this->buildRequestModel( $options['body'], $model );
-      $body = json_encode($requestModel);
+      if( $this->isDebugMode() ) {
+        $body = json_encode($requestModel, JSON_PRETTY_PRINT);
+      } else {
+        $body = json_encode($requestModel);
+      }
     }
     return $body;
   }
@@ -185,9 +231,16 @@ class APIResource {
 
     //make request
     try {
+      if( $this->isDebugMode() ) {
+        $this->last_message= ['request' => ['url'=>$url, 'action'=>$action, 'headers'=>$this->sparkpost->getHttpHeaders(), 'body' => $body]];
+      }
       $response = $this->sparkpost->httpAdapter->send($url, $action, $this->sparkpost->getHttpHeaders(), $body);
 
       $statusCode = $response->getStatusCode();
+
+      if( $this->isDebugMode() ) {
+        $this->last_message['response']['statusCode'] = $statusCode;
+      }
 
       // Handle 4XX responses, 5XX responses will throw an HttpAdapterException
       if ($statusCode < 400) {
@@ -198,6 +251,9 @@ class APIResource {
       }
       else {
         $response = json_decode($response->getBody(), true);
+        if( $this->isDebugMode() ) {
+          $this->last_message['response']['response'] = $response;
+        }
         throw new APIResponseException(
           'Received bad response from ' . ucfirst($this->endpoint),
           $statusCode,

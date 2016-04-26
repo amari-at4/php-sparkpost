@@ -18,6 +18,7 @@ class Transmission extends APIResource {
     'attachments'=>'content.attachments',
     'campaign'=>'campaign_id',
     'customHeaders'=>'content.headers',
+    'attachments'=>'content.attachments',
     'description'=>'description',
     'from'=>'content.from',
     'html'=>'content.html',
